@@ -45,14 +45,16 @@ def store_note():
     if not check_length(title, 100):
         return error_response("Title has too many characters")
 
-    entity = datastore.Entity(key=datastore_client.key(title))
+    entity = datastore.Entity(
+        key=datastore_client.key('note', title),
+        exclude_from_indexes=("text",))
     entity.update({
-        'note': note,
+        'text': note,
         'createdDate': datetime.datetime.now(),
         'modifiedDate': datetime.datetime.now()
     })
-    print(entity)
-    #datastore_client.put(entity)
+
+    datastore_client.put(entity)
     return success_response()
 
 

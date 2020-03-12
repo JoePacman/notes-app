@@ -1,5 +1,7 @@
 runtime: python37
 
+service: notes-backend
+
 handlers:
 - url: /.*
   script: auto
