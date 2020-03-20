@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import datetime
-from flask import Flask, json, request, jsonify
+from flask import Flask, json, jsonify, request
 from google.cloud import datastore
 
 app = Flask(__name__)
@@ -26,18 +26,19 @@ kind_user = 'user'
 
 @app.route('/json', methods=['GET'])
 def return_json():
-    testJson = {'one': 1, 'two' : 2, 'three': 3}
+    testJson = {'one': 1, 'two': 2, 'three': 3}
     return app.response_class(
         response=json.dumps(testJson),
         status=200,
         mimetype='application/json'
     )
 
+
 @app.route('/note', methods=['GET'])
 def get_note():
-    json = request.get_json()
-    title_search_string = json.get('title')
-    user = json.get('user')
+    getJson = request.get_json()
+    title_search_string = getJson.get('title')
+    user = getJson.get('user')
     query = datastore_client.query(kind=kind_note)
     entities = list(query.add_filter('user', '=', user).fetch())
     matches = dict()
@@ -45,17 +46,16 @@ def get_note():
     for entity in entities:
         entity_title = entity[kind_note_title]
         entity_note = entity[kind_note_text]
-        if title_search_string.lower() in entity_title:
-            matches.update({entity_title, entity_note})
+        if title_search_string.lower() in entity_title.lower():
+            matches.update({entity_title: entity_note})
 
-    json_response = {'matches' : matches}
-    return success_response(json_response)
+    json_response = {"matches": matches}
+    return jsonify(json_response)
 
 
 @app.route('/note', methods=['POST'])
 def store_note():
-    json = request.get_json()
-    title = json.get(kind_note_title)
+    noteJson = request.get_json()
 
     if not check_length(kind_note_title, 500):
         return error_response("Title has too many characters")
@@ -64,9 +64,9 @@ def store_note():
         key=datastore_client.key(kind_note),
         exclude_from_indexes=("text",))
     entity.update({
-        'title': kind_note_title,
-        'text': kind_note_text,
-        'user': json.get('user'),
+        'title': noteJson.get(kind_note_title),
+        'text': noteJson.get(kind_note_text),
+        'user': noteJson.get(kind_user),
         'createdDate': datetime.datetime.now(),
         'modifiedDate': datetime.datetime.now()
     })
@@ -81,13 +81,6 @@ def check_length(string, size):
 
 def success_response():
     return app.response_class(
-        status=200,
-        mimetype='application/json')
-
-
-def success_response(_json):
-    return app.response_class(
-        response=json.dumps(_json),
         status=200,
         mimetype='application/json')
 
