@@ -14,13 +14,15 @@
 
 import datetime
 from flask import Flask, json, jsonify, request
+from flask_cors import CORS
 from google.cloud import datastore
 
 app = Flask(__name__)
+CORS(app)
 datastore_client = datastore.Client()
 kind_note = 'note'
 kind_note_title = 'title'
-kind_note_text = 'text'
+kind_note_text = 'note_text'
 kind_user = 'user'
 
 
@@ -34,20 +36,22 @@ def return_json():
     )
 
 
-@app.route('/note', methods=['GET'])
+@app.route('/note/get', methods=['POST'])
 def get_note():
     getJson = request.get_json()
     title_search_string = getJson.get('title')
     user = getJson.get('user')
     query = datastore_client.query(kind=kind_note)
     entities = list(query.add_filter('user', '=', user).fetch())
-    matches = dict()
+    matches = []
 
     for entity in entities:
         entity_title = entity[kind_note_title]
         entity_note = entity[kind_note_text]
-        if title_search_string.lower() in entity_title.lower():
-            matches.update({entity_title: entity_note})
+        if title_search_string is None:
+            matches.append({kind_note_title: entity_title, kind_note_text: entity_note})
+        elif title_search_string.lower() in entity_title.lower():
+            matches.append({kind_note_title: entity_title, kind_note_text: entity_note})
 
     json_response = {"matches": matches}
     return jsonify(json_response)
@@ -64,9 +68,9 @@ def store_note():
         key=datastore_client.key(kind_note),
         exclude_from_indexes=("text",))
     entity.update({
-        'title': noteJson.get(kind_note_title),
-        'text': noteJson.get(kind_note_text),
-        'user': noteJson.get(kind_user),
+        kind_note_title: noteJson.get(kind_note_title),
+        kind_note_text: noteJson.get(kind_note_text),
+        kind_user: noteJson.get(kind_user),
         'createdDate': datetime.datetime.now(),
         'modifiedDate': datetime.datetime.now()
     })
