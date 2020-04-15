@@ -13,6 +13,7 @@
 # limitations under the License.
 
 import datetime
+import hashlib
 from flask import Flask, json, jsonify, request
 from flask_cors import CORS
 from google.cloud import datastore
@@ -23,7 +24,9 @@ datastore_client = datastore.Client()
 kind_note = 'note'
 kind_note_title = 'title'
 kind_note_text = 'note_text'
-kind_user = 'user'
+kind_note_modified_date = 'last_modified_date'
+kind_note_created_date = 'created_date'
+kind_note_user = 'user'
 
 
 @app.route('/json', methods=['GET'])
@@ -38,20 +41,25 @@ def return_json():
 
 @app.route('/note/get', methods=['POST'])
 def get_note():
-    getJson = request.get_json()
-    title_search_string = getJson.get('title')
-    user = getJson.get('user')
+    get_json = request.get_json()
+    title_search_string = get_json.get(kind_note_title)
+    user = get_json.get(kind_note_user)
     query = datastore_client.query(kind=kind_note)
-    entities = list(query.add_filter('user', '=', user).fetch())
+    entities = list(query.add_filter(kind_note_user, '=', user).fetch())
     matches = []
 
     for entity in entities:
         entity_title = entity[kind_note_title]
         entity_note = entity[kind_note_text]
+        entity_last_modified = entity[kind_note_modified_date]
         if title_search_string is None:
-            matches.append({kind_note_title: entity_title, kind_note_text: entity_note})
+            matches.append({kind_note_title: entity_title,
+                            kind_note_text: entity_note,
+                            kind_note_modified_date: entity_last_modified})
+        # search logic
         elif title_search_string.lower() in entity_title.lower():
-            matches.append({kind_note_title: entity_title, kind_note_text: entity_note})
+            matches.append({kind_note_title: entity_title,
+                            kind_note_text: entity_note})
 
     json_response = {"matches": matches}
     return jsonify(json_response)
@@ -59,24 +67,42 @@ def get_note():
 
 @app.route('/note', methods=['POST'])
 def store_note():
-    noteJson = request.get_json()
+    note_json = request.get_json()
 
     if not check_length(kind_note_title, 500):
         return error_response("Title has too many characters")
 
+    if note_json.get(kind_note_title) is None:
+        return error_response("Title cannot be null")
+
+    # check if note already exists - create or update
+    query = datastore_client.query(kind=kind_note)
+    pre_existing_note = list(query.add_filter(kind_note_title, '=', note_json.get(kind_note_title)).fetch())
+    already_exists = False
+    if len(pre_existing_note) > 0:
+        if md5_hex(pre_existing_note[0][kind_note_title]) == md5_hex(note_json.get(kind_note_title)):
+            already_exists = True
+
     entity = datastore.Entity(
-        key=datastore_client.key(kind_note),
-        exclude_from_indexes=("text",))
+        key=datastore_client.key(kind_note, md5_hex(note_json.get(kind_note_title))),
+        # tuple with single value
+        exclude_from_indexes=(kind_note_text,))
+    current_time = datetime.datetime.now()
     entity.update({
-        kind_note_title: noteJson.get(kind_note_title),
-        kind_note_text: noteJson.get(kind_note_text),
-        kind_user: noteJson.get(kind_user),
-        'createdDate': datetime.datetime.now(),
-        'modifiedDate': datetime.datetime.now()
+        kind_note_title: note_json.get(kind_note_title),
+        kind_note_text: note_json.get(kind_note_text),
+        kind_note_user: note_json.get(kind_note_user),
+        kind_note_modified_date: current_time,
+        kind_note_created_date: pre_existing_note[0][kind_note_created_date] if already_exists else current_time
     })
 
+    # save entity
     datastore_client.put(entity)
     return success_response()
+
+
+def md5_hex(string):
+    return hashlib.md5(string.encode('utf-8')).hexdigest()
 
 
 def check_length(string, size):
