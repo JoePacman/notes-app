@@ -28,17 +28,6 @@ kind_note_modified_date = 'last_modified_date'
 kind_note_created_date = 'created_date'
 kind_note_user = 'user'
 
-
-@app.route('/json', methods=['GET'])
-def return_json():
-    testJson = {'one': 1, 'two': 2, 'three': 3}
-    return app.response_class(
-        response=json.dumps(testJson),
-        status=200,
-        mimetype='application/json'
-    )
-
-
 @app.route('/note/get', methods=['POST'])
 def get_note():
     get_json = request.get_json()
@@ -65,13 +54,17 @@ def get_note():
     return jsonify(json_response)
 
 
+def md5_hex(string):
+    return hashlib.md5(string.encode('utf-8')).hexdigest()
+
+
 @app.route('/note', methods=['POST'])
 def store_note():
     note_json = request.get_json()
 
-    if not check_length(kind_note_title, 500):
+    # format checks
+    if len(note_json.get(kind_note_title)) >= 500:
         return error_response("Title has too many characters")
-
     if note_json.get(kind_note_title) is None:
         return error_response("Title cannot be null")
 
@@ -83,6 +76,7 @@ def store_note():
         if md5_hex(pre_existing_note[0][kind_note_title]) == md5_hex(note_json.get(kind_note_title)):
             already_exists = True
 
+    # create/ update entity
     entity = datastore.Entity(
         key=datastore_client.key(kind_note, md5_hex(note_json.get(kind_note_title))),
         # tuple with single value
@@ -95,18 +89,14 @@ def store_note():
         kind_note_modified_date: current_time,
         kind_note_created_date: pre_existing_note[0][kind_note_created_date] if already_exists else current_time
     })
-
-    # save entity
     datastore_client.put(entity)
     return success_response()
 
 
-def md5_hex(string):
-    return hashlib.md5(string.encode('utf-8')).hexdigest()
-
-
-def check_length(string, size):
-    return True if len(string) <= size else False
+@app.route('/note', methods=['DELETE'])
+def delete_note():
+    datastore_client.delete(datastore_client.key(kind_note, md5_hex(request.get_json().get(kind_note_title))))
+    return success_response()
 
 
 def success_response():
