@@ -1,26 +1,11 @@
-# Copyright 2018 Google LLC
-#
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-#
-#     http://www.apache.org/licenses/LICENSE-2.0
-#
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
-
 import datetime
 import hashlib
 from flask import Flask, json, jsonify, request
 from flask_cors import CORS
-from google.cloud import datastore
+from .service import datastore
 
 app = Flask(__name__)
 CORS(app)
-datastore_client = datastore.Client()
 kind_note = 'note'
 kind_note_title = 'title'
 kind_note_text = 'note_text'
@@ -44,8 +29,7 @@ def get_note():
     get_json = request.get_json()
     title_search_string = get_json.get(kind_note_title)
     user = get_json.get(kind_note_user)
-    query = datastore_client.query(kind=kind_note)
-    entities = list(query.add_filter(kind_note_user, '=', user).fetch())
+    entities = datastore.get(kind_note, {kind_note_user: user})
     matches = []
 
     for entity in entities:
@@ -80,33 +64,30 @@ def store_note():
         return error_response("Title cannot be null")
 
     # check if note already exists - create or update
-    query = datastore_client.query(kind=kind_note)
-    pre_existing_note = list(query.add_filter(kind_note_title, '=', note_json.get(kind_note_title)).fetch())
+    pre_existing_notes = datastore.get(kind_note, {kind_note_title: note_json.get(kind_note_title)})
     already_exists = False
-    if len(pre_existing_note) > 0:
-        if md5_hex(pre_existing_note[0][kind_note_title]) == md5_hex(note_json.get(kind_note_title)):
+    if len(pre_existing_notes) > 0:
+        if md5_hex(pre_existing_notes[0][kind_note_title]) == md5_hex(note_json.get(kind_note_title)):
             already_exists = True
 
     # create/ update entity
-    entity = datastore.Entity(
-        key=datastore_client.key(kind_note, md5_hex(note_json.get(kind_note_title))),
-        # tuple with single value
-        exclude_from_indexes=(kind_note_text,))
+    key = md5_hex(note_json.get(kind_note_title))
     current_time = datetime.datetime.now()
-    entity.update({
+    values = {
         kind_note_title: note_json.get(kind_note_title),
         kind_note_text: note_json.get(kind_note_text),
         kind_note_user: note_json.get(kind_note_user),
         kind_note_modified_date: current_time,
-        kind_note_created_date: pre_existing_note[0][kind_note_created_date] if already_exists else current_time
-    })
-    datastore_client.put(entity)
+        kind_note_created_date: pre_existing_notes[0][kind_note_created_date] if already_exists else current_time
+    }
+
+    datastore.post(kind_note, key, (kind_note_text,), values)
     return success_response()
 
 
 @app.route('/note', methods=['DELETE'])
 def delete_note():
-    datastore_client.delete(datastore_client.key(kind_note, md5_hex(request.get_json().get(kind_note_title))))
+    datastore.delete(kind_note, md5_hex(request.get_json().get(kind_note_title)))
     return success_response()
 
 
@@ -120,4 +101,6 @@ def error_response(string):
     return app.response_class(
         response=json.dumps(string),
         status=500)
+
+
 
