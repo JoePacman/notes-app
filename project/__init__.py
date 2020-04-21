@@ -28,6 +28,17 @@ kind_note_modified_date = 'last_modified_date'
 kind_note_created_date = 'created_date'
 kind_note_user = 'user'
 
+
+@app.route('/json', methods=['GET'])
+def simple_endpoint():
+    testJson = {'one': 1, 'two': 2, 'three': 3}
+    return app.response_class(
+        response=json.dumps(testJson),
+        status=200,
+        mimetype='application/json'
+    )
+
+
 @app.route('/note/get', methods=['POST'])
 def get_note():
     get_json = request.get_json()
@@ -110,14 +121,3 @@ def error_response(string):
         response=json.dumps(string),
         status=500)
 
-
-if __name__ == '__main__':
-    # This is used when running locally only. When deploying to Google App
-    # Engine, a webserver process such as Gunicorn will serve the app. This
-    # can be configured by adding an `entrypoint` to app.yaml.
-    # Flask's development server will automatically serve static files in
-    # the "static" directory. See:
-    # http://flask.pocoo.org/docs/1.0/quickstart/#static-files. Once deployed,
-    # App Engine itself will serve those files as configured in app.yaml.
-    app.run(host='127.0.0.1', port=8080, debug=True)
-# [START gae_python37_render_template]
