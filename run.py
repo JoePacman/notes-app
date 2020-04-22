@@ -1,4 +1,4 @@
-from project import app
+from project.main import app
 
 if __name__ == '__main__':
     # This is used when running locally only. When deploying to Google App

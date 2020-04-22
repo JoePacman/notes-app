@@ -2,7 +2,7 @@ import datetime
 import hashlib
 from flask import Flask, json, jsonify, request
 from flask_cors import CORS
-from .service import datastore
+from .service.datastore import DatastoreService
 
 app = Flask(__name__)
 CORS(app)
@@ -12,6 +12,7 @@ kind_note_text = 'note_text'
 kind_note_modified_date = 'last_modified_date'
 kind_note_created_date = 'created_date'
 kind_note_user = 'user'
+datastore = DatastoreService()
 
 
 @app.route('/json', methods=['GET'])
@@ -22,6 +23,16 @@ def simple_endpoint():
         status=200,
         mimetype='application/json'
     )
+
+
+@app.route('/mocktest', methods=['GET'])
+def mock_test():
+    mock_test_func()
+    return success_response()
+
+
+def mock_test_func():
+    print(datastore.get(kind_note, {'user': 'joseph.w.packham@gmail.com'}).values)
 
 
 @app.route('/note/get', methods=['POST'])

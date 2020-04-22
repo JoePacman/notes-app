@@ -1,25 +1,25 @@
 from google.cloud import datastore
 
-datastore_client = datastore.Client()
 
+class DatastoreService:
 
-def get(kind, filters):
-    query = datastore_client.query(kind=kind)
-    for key, value in filters.items():
-        query.add_filter(key, '=', value)
-    return list(query.fetch())
+    datastore_client = datastore.Client()
 
+    def get(self, kind, filters):
+        query = self.datastore_client.query(kind=kind)
+        for key, value in filters.items():
+            query.add_filter(key, '=', value)
+        return list(query.fetch())
 
-def post(kind, key, exclude_from_indexes_tuple, values):
-    entity = datastore.Entity(
-        key=datastore_client.key(kind, key),
-        # tuple with single value
-        exclude_from_indexes=exclude_from_indexes_tuple)
-    entity.update(values)
-    datastore_client.put(entity)
+    def post(self, kind, key, exclude_from_indexes_tuple, values):
+        entity = datastore.Entity(
+            key=self.datastore_client.key(kind, key),
+            # tuple with single value
+            exclude_from_indexes=exclude_from_indexes_tuple)
+        entity.update(values)
+        self.datastore_client.put(entity)
 
-
-def delete(kind, key):
-    datastore_client.delete(datastore_client.key(kind, key))
+    def delete(self, kind, key):
+        self.datastore_client.delete(self.datastore_client.key(kind, key))
 
 

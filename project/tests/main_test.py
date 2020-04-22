@@ -1,28 +1,45 @@
 import unittest
+from unittest import mock
+from project.main import app
+from project.service import datastore
+from project import main
+from google.cloud.datastore.entity import Entity
+from flask import json
 
-from project import app
 
-class BasicTests(unittest.TestCase):
+class MainTests(unittest.TestCase):
 
     ############################
     # setup and teardown #######
     ############################
     def setUp(self):
-        print("SETUP")
+        print("Setup before EACH test")
+        app.testing = True
+        self.app = app.test_client()
 
     def tearDown(self):
-        print("TEAR DOWN")
+        print("Tear down after EACH test")
 
     ###############
     # tests ######
     ###############
-    def test_simple_endpoint(self):
-        app.testing = True
-        client = app.test_client()
-
-        r = client.get('/json')
+    @mock.patch("project.service.datastore.DatastoreService")
+    def test_mock_datastore_get(self, mock_datastore_service):
+        entity = Entity()
+        entity.update({'title': 'Example Title', 'note_text': 'Example text', 'user': 'joe.blogs@gmail.com',
+                       'last_modified_date': '', 'created_date': ''})
+        entities = list()
+        entities.append(entity)
+        mock_datastore_service.return_value.get.return_value = entities
+        main.datastore = datastore.DatastoreService()  # instantiate a new DatastoreService so it is replaced with mock
+        r = self.app.post('/note/get', data=json.dumps({
+            'user': 'joe.blogs@gmail.com'
+        }), headers={'Content-Type': 'application/json'})
         assert r.status_code == 200
-        assert r.json == {'one': 1, 'two': 2, 'three': 3}
+        assert r.json == {'matches':[
+                {'title': 'Example Title',
+                 'note_text': 'Example text',
+                 'last_modified_date': ''}]}
 
 
 if __name__ == "__main__":
