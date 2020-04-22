@@ -6,6 +6,9 @@ from project import main
 from google.cloud.datastore.entity import Entity
 from flask import json
 
+# for a good tutorial on python mocking run through
+# https://medium.com/python-pandemonium/python-mocking-you-are-a-tricksy-beast-6c4a1f8d19b2
+
 
 class MainTests(unittest.TestCase):
 
