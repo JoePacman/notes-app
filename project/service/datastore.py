@@ -21,5 +21,6 @@ class DatastoreService:
 
     def delete(self, kind, key):
         self.datastore_client.delete(self.datastore_client.key(kind, key))
+        print("deleting key " + key)
 
 
