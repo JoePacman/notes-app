@@ -28,6 +28,20 @@ The service should now be reachable on localhost:8080
 gcloud builds submit --tag gcr.io/{your_project_id}/notes-app-backend
 gcloud run deploy --image gcr.io/{your_project_id}/test_datastore --platform managed
 ```
+## Using Cloud Build to deploy
+The cloudbuild.yaml can be used to deploy via cloud build. 
+
+This creates a container in container registry and delploys it to Cloud Run.
+
+The command to do this locally is:
+
+```
+gcloud builds submit --config cloudbuild.yaml
+```
+
+This branch (the 'cloud-build-poc' branch) is also wired into the triggers in Cloud Build.
+
+Any commit to this branch will trigger the steps in cloudbuild.yaml within GCP.
 
 ### Calling locally
 Generate a JWT for calling test_gateway using this command
@@ -37,3 +51,4 @@ gcloud auth print-identity-token
 This should only work from an authenticated google account that has access to the cloud run service.
 
 See 'Creating private services' on https://cloud.google.com/run/docs/triggering/https-request.
+
